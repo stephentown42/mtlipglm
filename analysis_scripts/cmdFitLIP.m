@@ -57,8 +57,8 @@ parfor kExperiment=1:numel(experiments)
             modelsToFit = [1 5 6]; % 1, 5, 6 are the only fits provided
             
             % edit mtlipglm/fitAllModels to see fitting code
-            g=fitAllModels(mstruct,kNeuron,true,modelsToFit,'instantaneousCoupling', true, 'rho', ridgeParameter);
-            P=mstruct.modelComparison(g);
+            g = fitAllModels(mstruct, kNeuron, true, modelsToFit, 'instantaneousCoupling', true, 'rho', ridgeParameter);
+            P = mstruct.modelComparison(g);
             parsave(fname, P,'-v7')
         end
         

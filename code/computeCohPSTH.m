@@ -1,5 +1,5 @@
 function [rbar, psthTime, nTrials, q, dpsign]=computeCohPSTH(y, g, trial, win, plotIt, choFlip, dpcell)
-% compute the coherence dpendent psth using spike predictions and mstruct
+% compute the coherence dependent psth using spike predictions and mstruct
 % [rbar, psthTime, nTrialsPerCond, Conditions]=computeCohPSTH(y, g, trial, win, plotIt)
 if ~exist('win', 'var') || isempty(win)
     win=[-10 120];
@@ -23,7 +23,7 @@ motionOn=find(g.getBinnedSpikeTrain(trial, 'motionon', 1:numel(trial)));
 nTrials=numel(trial);
 coh=nan(nTrials,1);
 for kTrial=1:nTrials
-coh(kTrial)=sum(trial(kTrial).pulses);
+    coh(kTrial)=sum(trial(kTrial).pulses);
 end
 % coh=mean(pulses,2);
 % coh=zscore(coh);
@@ -43,7 +43,7 @@ cho=arrayfun(@(x) x.choice, trial);
 
 psthTime=(win(1):win(2))*g.binSize;
 nPsthBins=numel(psthTime);
-[~,~,~,rtrue]=eventTriggeredAverage(y, motionOn, win); %#ok<FNDSB>
+[~,~,~,rtrue] = eventTriggeredAverage(y, motionOn, win); %#ok<FNDSB>
 % [rtrue, bcenters, vidx]=binSpTimes(y
 if ~exist('dpcell', 'var')
     ix=sum(isnan(rtrue(:,psthTime>100 & psthTime < 1200)),2)==0;

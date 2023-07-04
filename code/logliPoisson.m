@@ -4,6 +4,6 @@ function llsp = logliPoisson(lambda, r)
 % must be in count per bin, not per second units
 
 etol = 1e-100;
-lambda(lambda<etol)=etol;
+lambda( lambda < etol) = etol;
 
-llsp   = r'*log(lambda) - sum(lambda);
+llsp = r'*log(lambda) - sum(lambda);

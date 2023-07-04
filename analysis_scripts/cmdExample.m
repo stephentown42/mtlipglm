@@ -6,9 +6,9 @@ disp(experimentList(:))
 
 
 %% Load up an experiment
-exname=experimentList{1};
+exname = experimentList{1};
 
-mstruct=mtlipglm(exname);
+mstruct = mtlipglm(exname);
 mstruct.buildTrialStruct('IncludeContrast', true, 'MotionEpoch', false, 'MTsim', false);
 
 %% plot sample trials

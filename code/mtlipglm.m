@@ -13,18 +13,18 @@ classdef mtlipglm < handle
     
     
     properties
-        exname@char             % experiment name
-        stim@rcgreader          % stimulus object
-        neurons@neuro           % neuron objects
+        exname char             % experiment name
+        stim rcgreader          % stimulus object
+        neurons neuro           % neuron objects
         lfp                     % local field potential
         directory               % path to where data lives
-        trial@struct            % struct array of trial data
-        trialParam@struct       % experiment parameters
-        stimValidTrials@double  % index for trials in the stimulus object
+        trial struct            % struct array of trial data
+        trialParam struct       % experiment parameters
+        stimValidTrials double  % index for trials in the stimulus object
         nFolds=5                % number of CV folds for evaluating model
-        overwrite@logical=false % refit the models and overwrite files
+        overwrite logical=false % refit the models and overwrite files
         modelDir                % name of directory to save/load fits
-        binSize@double=10;      % bin size in ms
+        binSize double=10;      % bin size in ms
     end
     
     methods
@@ -46,11 +46,11 @@ classdef mtlipglm < handle
         end % constructor
         
         % --- Get Neuron/Stimulus Data
-        function getExperiment(obj,exname)
+        function getExperiment(obj, exname)
             % getExperiment(exname)
             obj.exname = exname;
-            obj.stim=rcgreader(obj.exname, obj.directory);
-            obj.neurons=getNeurons(obj.exname,obj.directory);
+            obj.stim = rcgreader(obj.exname, obj.directory);
+            obj.neurons = getNeurons(obj.exname,obj.directory);
         end
         
         % --- Build Trial Struct for NeuroGLM
@@ -69,12 +69,11 @@ classdef mtlipglm < handle
             % MTsim@logical           - simulate MT rates as stimulus
             %                           (needed for MT-to-LIP model)
             
-            
-            for k=1:numel(obj.neurons)
-                nw(k)=obj.neurons(k).getStruct(); %#ok<AGROW>
+            for k = 1 : numel(obj.neurons)
+                nw(k) = obj.neurons(k).getStruct(); %#ok<AGROW>
             end
             
-            st=getStim(obj.exname, obj.directory);
+            st = getStim(obj.exname, obj.directory);
             
             fprintf('Building Trial Structure [%s]\n', st.exname)
             
@@ -95,13 +94,11 @@ classdef mtlipglm < handle
             binres      = 1e-3; % discretize everything at 1ms resolusion
             binfun      = @(t) (t==0) + ceil(t/binres);
             nNeurons    = numel(nw);
-            
-            
+             
             if includeLFP
                 fprintf('Found %d nw across %d channels of LFP\n', nNeurons, numel(obj.lfp.info.channels))
             end
-            
-            
+           
             assert(binres==1e-3, 'Binning has only been tested at 1ms bins.')
             
             %--------------------------------------------------------------
@@ -146,7 +143,8 @@ classdef mtlipglm < handle
             validTrials = find(all(ndx,2) & st.goodtrial(:) & ~isnan(trialStartsPlexonTime));
             nTrials = numel(validTrials);
             
-            timingFields = {'duration','motionon', 'motionoff', 'fpon', 'fpentered', 'gosignal', 'targson', 'saccade', 'pulseon', 'reward'};
+            timingFields = {'duration','motionon', 'motionoff', 'fpon',...
+                'fpentered', 'gosignal', 'targson', 'saccade', 'pulseon', 'reward'};
             
             valueFields = {'choice', 'pulses', 'trialNumber', 'trialId', 'isRevco'};
             
@@ -246,18 +244,27 @@ classdef mtlipglm < handle
                     iiv=bsxfun(@plus, iis', (0:nGabors-1)*size(contrast,1));
                     iix=repmat(frameInds(:), 1, nGabors);
                     iiy=ones(numel(frameInds),1)*(1:nGabors);
+
                     obj.trial(kTrial).contrasts=sparse(iix(:), iiy(:), contrast(iiv(:)), obj.trial(kTrial).duration, nGabors);
                     obj.trial(kTrial).deltaphase=sparse(iix(:), iiy(:), dphi(iiv(:)), obj.trial(kTrial).duration, nGabors);
-                    spavcon=mean(contrast,2); % spatially averaged and thresholded contrast
                     
-                    obj.trial(kTrial).contrast=sparse(frameInds(:), ones(numel(frameInds),1), spavcon(iis), obj.trial(kTrial).duration, 1);
+                    spavcon = mean(contrast,2); % spatially averaged and thresholded contrast
+                    
+                    obj.trial(kTrial).contrast = sparse(frameInds(:),...
+                        ones(numel(frameInds),1), spavcon(iis),...
+                        obj.trial(kTrial).duration, 1);
                     
                     % simulate from MT population
                     if p.Results.MTsim
                         
                         % --- Simulate from full population
                         tic % this is slow
-                        Xdir=basisFactory.boxcarStim(obj.trial(kTrial).pulseon, obj.trial(kTrial).pulseoff, obj.trial(kTrial).duration, obj.trial(kTrial).pulses);
+                        Xdir = basisFactory.boxcarStim( ...
+                            obj.trial(kTrial).pulseon,...
+                            obj.trial(kTrial).pulseoff,...
+                            obj.trial(kTrial).duration,...
+                            obj.trial(kTrial).pulses);
+
                         Xdir = full(Xdir);
                         
                         if contrastIsBoxcar % if using boxcar
@@ -267,13 +274,13 @@ classdef mtlipglm < handle
                             contrast = contrast(:);
                         end
                         
-                        pulse    = Xdir(:);
+                        pulse = Xdir(:);
                         
                         % simulate population of MT responses
                         C = convmtx(contrast,size(kContr1,1));
                         D = convmtx(pulse, size(kDir1,1));
-                        MTp=exp(bsxfun(@plus, b0, C*kContr1 + D*kDir1));
-                        MTa=exp(bsxfun(@plus, b0, C*kContr1 + D*-kDir1));
+                        MTp = exp(bsxfun(@plus, b0, C*kContr1 + D*kDir1));
+                        MTa = exp(bsxfun(@plus, b0, C*kContr1 + D*-kDir1));
                         
                         MTp = mean(MTp,2);
                         MTa = mean(MTa,2);
@@ -286,14 +293,14 @@ classdef mtlipglm < handle
                         
                         et = toc;
                         fprintf('Trial: %d took %d ms\n', kTrial, et*1e3)
-                        
-                        
+                                              
                     end % simulate MT
                 end % include Contrast
                 
                 
                 % -- Trial spike times
                 for kNeuron = 1:nNeurons
+                    
                     tt = (nw(kNeuron).spikeTimes(nw(kNeuron).spikeTimes > trialStartsPlexonTime(t) & nw(kNeuron).spikeTimes < (trialStartsPlexonTime(t) + st.timing(t).duration)) - trialStartsPlexonTime(t));
                     obj.trial(kTrial).(neuronFields{kNeuron}) = binfun(tt);
                     
@@ -374,7 +381,10 @@ classdef mtlipglm < handle
             
             
             % --- build params struct
-            pfields = {'nPulses', 'luminanceBackground', 'luminanceMinMuMax', 'gaborXY', 'sf', 'theta', 'tf', 'nFrames', 'nGabors', 'frate', 'ppd'};
+            pfields = {'nPulses', 'luminanceBackground',...
+                'luminanceMinMuMax', 'gaborXY', 'sf', 'theta', 'tf',...
+                'nFrames', 'nGabors', 'frate', 'ppd'};
+
             args = [pfields; cell(1, numel(pfields))];
             obj.trialParam = struct(args{:});
             for k = 1:numel(pfields)
@@ -387,23 +397,22 @@ classdef mtlipglm < handle
         end
         
         % --- fit all the models
-        function g=fitAllModels(obj, kNeuron, saveIt, modelIndex, varargin)
+        function g = fitAllModels(obj, kNeuron, saveIt, modelIndex, varargin)
             % FITALLMODELS fits all the models described in Yates et al., 2017
             % glm = fitAllModels(obj, kNeuron, saveIt, modelIndex, varargin)
-            
             
             % parse arguments to find hyperparameter(s)
             args = varargin;
             rhoarg = find(cellfun(@(x) strcmp(x, 'rho'), args));
             if ~isempty(rhoarg)
-                rho=args{rhoarg+1};
+                rho = args{rhoarg+1};
                 args([rhoarg rhoarg+1])=[];
             else
                 rho = 0.1; % default to small amount of regularization
             end
             
             if ~exist('saveIt', 'var') || isempty(saveIt)
-                saveIt=true;
+                saveIt = true;
             end
             
             % --- LIP has more sluggish responses than MT so the bases must
@@ -412,43 +421,63 @@ classdef mtlipglm < handle
             % intParams = [motion, history, couplingInter, couplingIntra]
             % (all intParams are in miliseconds)
             if obj.neurons(kNeuron).isMT
-                intParams=[400, 200, 500, 500];
+                intParams = [400, 200, 500, 500];
             else
-                intParams=[800, 200, 500, 500];
+                intParams = [800, 200, 500, 500];
             end
             
             fprintf('********************************************************\n')
             fprintf('********************************************************\n')
             fprintf('setting up fit [%s]\n', obj.neurons(kNeuron).getName(0))
             
-            modelNames={'Poisson', 'Uncoupled', 'InterArea', 'IntraArea', 'MTsim', 'MTsimChoice'};
-            if ~exist('modelIndex', 'var')||isempty(modelIndex)
-                modelIndex=1:numel(modelNames);
+            modelNames = { ...
+                'Poisson',...
+                'Uncoupled',...
+                'InterArea',...
+                'IntraArea',...
+                'MTsim',...
+                'MTsimChoice'};
+            
+            if ~exist('modelIndex', 'var') || isempty(modelIndex)
+                modelIndex = 1 : numel(modelNames);
             end
             
-            nModels=numel(modelIndex);
-            mparams={[1 0 0 0],[1 1 0 0], [1 1 0 1], [1 1 1 0], [1 0 0 0], [1 0 0 0]};
+            nModels = numel(modelIndex);
+
+            % param_names = gammaStim, gammaHist, gammaCoupleSame, gammaCoupleInter
+            mparams = { ...         % Switches to turn on/off stimulus kernel
+                [1 0 0 0],...
+                [1 1 0 0],...
+                [1 1 0 1],...
+                [1 1 1 0],...
+                [1 0 0 0],...
+                [1 0 0 0]};
             
             % -- loop over models
-            for kModel=1:nModels
-                idModel=modelIndex(kModel);
+            for kModel = 1 : nModels
+                
+                idModel = modelIndex(kModel);
                 
                 % --- Load fit if the file exists
-                if exist(fullfile(obj.modelDir, [obj.neurons(kNeuron).getName modelNames{idModel} '.mat']), 'file') && ~obj.overwrite
+                past_result_file = fullfile( obj.modelDir,...
+                    [obj.neurons(kNeuron).getName modelNames{idModel} '.mat']);
+
+                if exist( past_result_file, 'file') && ~obj.overwrite
                     fprintf('********************************************************\n')
                     fprintf('********************************************************\n')
                     fprintf('File Exists. Loading and skipping [%s]\n', modelNames{idModel})
                     fprintf('********************************************************\n')
                     fprintf('********************************************************\n')
-                    tmp=load(fullfile(obj.modelDir, [obj.neurons(kNeuron).getName modelNames{idModel}]));
+
+                    tmp = load(past_result_file);
                     % this is to deal with disappearing function handle
                     % bugs in certain versions of matlab
-                    g(kModel)=struct2funh(funh2struct(tmp.obj,false),false);
+                    g(kModel) = struct2funh(funh2struct(tmp.obj,false), false);
                     continue
                 end
                 
                 % --- Fit the model
-                g(kModel)=glmspike(modelNames{idModel});
+                g(kModel) = glmspike(modelNames{idModel});
                 
                 % set parameters that govern the design matrix
                 g(kModel).setDesignOptions('binSize', obj.binSize, ...
@@ -479,15 +508,16 @@ classdef mtlipglm < handle
                 end
                 
                 % Final setting of parameters
-                g(kModel).param=obj.trialParam;
-                g(kModel).fitNeuron=obj.neurons(kNeuron).getName(0);
+                g(kModel).param = obj.trialParam;
+                g(kModel).fitNeuron = obj.neurons(kNeuron).getName(0);
                 
                 % turn off unused stimulus kernels
-                params=intParams.*mparams{idModel};
+                params = intParams .* mparams{idModel};
                 
                 % create temporal basis functions
                 g(kModel).buildDesignBoxcar(obj.trial, params(1), params(2), params(3), params(4));
-                
+                %buildDesignBoxcar(obj.trial, gammaStim, gammaHist, gammaCoupleSame, gammaCoupleInter)
+
                 % build design matrix
                 g(kModel).compileDesignMatrix(obj.trial, 1:numel(obj.trial))
                 
@@ -503,7 +533,7 @@ classdef mtlipglm < handle
                 
                 if saveIt
                     g(kModel).save(obj.modelDir, obj.exname)
-                    g(kModel)=struct2funh(g(kModel), false);
+                    g(kModel) = struct2funh(g(kModel), false);
                 end
                 
             end % Loop over models
@@ -511,7 +541,7 @@ classdef mtlipglm < handle
         end % fitAllModels
         
         % --- Fit the LIP model with varying truncations of choice term
-        function g=fitLIPtruncation(obj, kNeuron, truncations, rho)
+        function g = fitLIPtruncation(obj, kNeuron, truncations, rho)
             % FITLIPTRUNCATION fits the stim-to-LIP model with varying
             % amounts of pre-saccadic term
             % g=fitLIPtruncation(obj, kNeuron, truncations, rho)
@@ -561,7 +591,7 @@ classdef mtlipglm < handle
         % --- Check if LIP units need a direction term
         % Is the direction kernel necessary? What percent of the population
         % have their fits improved with the inclusion of a direction kernel
-        function g=fitLIPStim(obj, kNeuron, rho)
+        function g = fitLIPStim(obj, kNeuron, rho)
             
             % there are two models: 1 with pulses. 1 without
             modelNames{1}='NoPulse';
@@ -606,12 +636,12 @@ classdef mtlipglm < handle
         end
         
         % --- model comparison
-        function S=modelComparison(obj,g)
-            % S=modelComparison(obj,g)
+        function S = modelComparison(obj, g)
+            % S = modelComparison(obj, g)
             % takes in glmspike objects and evaluates the goodness-of-fit,
             % and other model comparison metrics
             
-            assert(obj.binSize==10, 'bin size is assumed tp be 10ms in this code')
+            assert(obj.binSize==10, 'bin size is assumed to be 10ms in this code')
             
             win=[-100 300]; % assuming 10ms bins!
             
@@ -619,19 +649,22 @@ classdef mtlipglm < handle
             kModel  = 1; % the Data
             kNeuron = find(arrayfun(@(x) strcmp(x.getName(0), g(kModel).fitNeuron), obj.neurons));
             
-            y=g(kModel).getBinnedSpikeTrain(obj.trial, g(kModel).fitNeuron);
+            y = g(kModel).getBinnedSpikeTrain(obj.trial, g(kModel).fitNeuron);
             
-            sm=10; % 50ms smoothing
-            smrate=smooth(full(y),sm)/.01;
+            sm = 10; % 50ms smoothing
+            smrate = smooth(full(y), sm) / .01;
             
-            dpcell=obj.neurons(kNeuron).dPrimeSigned; %#ok<FNDSB>
-            [cohp, psthT,nTrialsPerCoh,Cohs, dpcell]=computeCohPSTH(smrate, g(kModel), obj.trial, win, false, true, dpcell);
+            dpcell = obj.neurons(kNeuron).dPrimeSigned; %#ok<FNDSB>
+            [cohp, psthT, nTrialsPerCoh, Cohs, dpcell] = computeCohPSTH( ...
+                smrate, g(kModel), obj.trial, win, false, true, dpcell);
             
             % --- Compute the PTA
             ptaWin  = [-20 300];
             ptaBins = 110;
+
             % basic uncorrected
-            [pta, ptaT, ~, dpcell]=computePTA(smrate, g(kModel), obj.trial, 0, ptaWin, ptaBins, dpcell);
+            [pta, ptaT, ~, dpcell] = computePTA(smrate, g(kModel),...
+                obj.trial, 0, ptaWin, ptaBins, dpcell);
             
             % --- Basic structure: filled with the data
             data.y          = y;
@@ -649,31 +682,34 @@ classdef mtlipglm < handle
             data.modelfit   = [];
             data.dprime     = dpcell;
             data.psthFlip   = dpcell;
-            data.logliTime  = nan(numel(psthT),obj.nFolds);
+            data.logliTime  = nan(numel(psthT), obj.nFolds);
             data.smoothingWindow = sm;
             data.designOpts = struct;
             
             % --- the loglikelihood of the data given perfect prediction
-            motionon=find(g(kModel).getBinnedSpikeTrain(obj.trial, 'motionon'));
-            ybn=binContinuous(y, motionon, win);
-            for kFold=1:obj.nFolds
-                for kBin=1:numel(psthT)
-                    testIndices=g(kModel).modelfit(kFold).testIndices;
-                    tmp=ybn(testIndices,kBin);
-                    data.logliTime(kBin, kFold)=logliPoisson(tmp(tmp==1), tmp(tmp==1));
+            motionon = find( g(kModel).getBinnedSpikeTrain(obj.trial, 'motionon'));
+            ybn = binContinuous(y, motionon, win);
+
+            for kFold = 1 : obj.nFolds
+                for kBin = 1 : numel(psthT)
+
+                    testIndices = g(kModel).modelfit(kFold).testIndices;
+                    tmp = ybn(testIndices,kBin);
+                    
+                    data.logliTime(kBin, kFold) = logliPoisson(tmp(tmp==1), tmp(tmp==1));
                 end
             end
             
             % --- What is being compared here (experiment, neuron, models)
-            S.exname=obj.stim.exname;
-            S.neuron=g(kModel).fitNeuron;
-            nModels=numel(g);
-            S.model=repmat(data, nModels+1,1);
+            S.exname = obj.stim.exname;
+            S.neuron = g(kModel).fitNeuron;
+            nModels = numel(g);
+            S.model = repmat(data, nModels+1,1);
             
             % --- Loop over models
-            for kModel=1:nModels
+            for kModel = 1 : nModels
                 
-                S.model(kModel+1).name=g(kModel).description;
+                S.model(kModel+1).name = g(kModel).description;
                 S.model(kModel+1).designOpts = g(kModel).designOptions;
                 
                 % --- correct for the binsize when I used ridge regression
@@ -683,7 +719,7 @@ classdef mtlipglm < handle
                     end
                 end
                 
-                lambda=g(kModel).cvPredictRate(obj.trial);
+                lambda = g(kModel).cvPredictRate(obj.trial);
                 
                 smrate=lambda/.01;
                 S.model(kModel+1).smoothingWindow = 0;

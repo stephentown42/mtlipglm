@@ -423,22 +423,25 @@ classdef neuro < handle
             
         end
 
-function g=getModelFit(N,modelDir, modelName, modelTag)
-%g=getModelFit(N,modelDir, modelName, modelTag)
-if nargin==1
-    help neuro/getModelFit
-    if nargout>0
-        g=[];
-    end
-    return
-end
-neuronFits=findFile(modelDir, N.getName);
-modelFits=findFile(neuronFits, modelName);
-modelComparison=findFile(modelFits, 'modelComparison');
-if ~isempty(modelComparison)
-    modelFits(strcmp(modelFits, modelComparison))=[];
-end
-end
+        function g = getModelFit(N, modelDir, modelName, modelTag)
+        % function g = getModelFit(N,modelDir, modelName, modelTag)
+        
+            if nargin==1
+                help neuro/getModelFit
+                if nargout>0
+                    g=[];
+                end
+                return
+            end
+    
+            neuronFits = findFile(modelDir, N.getName);
+            modelFits = findFile(neuronFits, modelName);
+            modelComparison = findFile(modelFits, 'modelComparison');
+
+            if ~isempty(modelComparison)
+                modelFits(strcmp(modelFits, modelComparison))=[];
+            end
+        end
 
         
 

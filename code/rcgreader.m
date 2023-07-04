@@ -8,7 +8,7 @@ classdef rcgreader
     
     methods
         function s = rcgreader(exname, dataPath)
-            fname=fullfile(dataPath, 'stim', [exname '_stim.mat']);
+            fname       = fullfile(dataPath, 'stim', [exname '_stim.mat']);
             s.exname    = exname;
             s.filename  = fname;
             s.rdr       = reader(fname);

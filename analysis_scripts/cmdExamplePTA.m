@@ -145,7 +145,7 @@ filterMotionOnset = diag(ones(2*nTimeLags, 1)); % length of motion + pta
 % holds the values of a certain pulse at a certain time-lag
 
 
-% First, the DCterm for motion onset effects. In pulseSTA, we remove this
+% First, the DC term for motion onset effects. In pulseSTA, we remove this
 % by analyzing the residuals. That is also how we analyze the
 % choice-corrected PTA (by running the PTA analysis on the residual spike
 % counts after subtracting off the average for each choice accordingly)
@@ -170,8 +170,10 @@ for kPulse = 1:7
     % get pulse times
     binnedPulseOnsets = binfun(pulseTimes(goodTrials,kPulse));
     n = numel(binnedPulseOnsets);
+
     % create a vector of the pulse values (at the time the pulse came on)
     tmp = sparse(binnedPulseOnsets, ones(n,1), pulseValues(goodTrials,kPulse), lastTimeBin,1);
+    
     % create a matrix where each column is those values at a particular
     % time lag
     tmp = conv2(full(tmp), filterPulse);

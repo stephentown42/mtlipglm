@@ -741,6 +741,10 @@ classdef glmspike < neuroGLM
                 predicted_rate = predicted_rate + ws.bias;
                 %rhat = ws.bias*ones(nT,1);
             end
+
+            % Get the indices for each covariate
+            covar_chans = cat(1, obj.covar.sdim);
+            covar_start_idx = cumsum(covar_chans);
             
             for kCov = 1 : numel(Covariates)
 
@@ -753,13 +757,13 @@ classdef glmspike < neuroGLM
                 if strcmp(Covariates{kCov}, 'bias')
                     continue
                 end
-                
-                ii = obj.idxmap.(Covariates{kCov});
+                               
+                ii = covar_start_idx(kCov) + (0:covar_chans(kCov)-1);
                 
                 for kTrial = 1 : nTrials
                     iix = trialStarts(kTrial):trialEnds(kTrial);
                     tmp = filter(ws.(Covariates{kCov}).data, 1, X(iix,ii));
-                    predicted_rate(iix) = predicted_rate(iix) + tmp;
+                    predicted_rate(iix) = predicted_rate(iix) + tmp;            % Add component onto prediction
                 end
             end
             
@@ -796,7 +800,7 @@ classdef glmspike < neuroGLM
                 fprintf('rhat has nans\n')
             end
             if p.Results.spiking
-                predicted_rate = poissrnd(predicted_rate);
+                predicted_rate=poissrnd(predicted_rate);
             end
             
         end
