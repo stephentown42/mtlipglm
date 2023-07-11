@@ -655,6 +655,7 @@ classdef mtlipglm < handle
             smrate = smooth(full(y), sm) / .01;
             
             dpcell = obj.neurons(kNeuron).dPrimeSigned; %#ok<FNDSB>
+
             [cohp, psthT, nTrialsPerCoh, Cohs, dpcell] = computeCohPSTH( ...
                 smrate, g(kModel), obj.trial, win, false, true, dpcell);
             
@@ -688,13 +689,13 @@ classdef mtlipglm < handle
             
             % --- the loglikelihood of the data given perfect prediction
             motionon = find( g(kModel).getBinnedSpikeTrain(obj.trial, 'motionon'));
-            ybn = binContinuous(y, motionon, win);
+            ybn = binContinuous(y, motionon, win);      % Times of spikes w.r.t. motion onset
 
             for kFold = 1 : obj.nFolds
                 for kBin = 1 : numel(psthT)
 
                     testIndices = g(kModel).modelfit(kFold).testIndices;
-                    tmp = ybn(testIndices,kBin);
+                    tmp = ybn(testIndices, kBin);
                     
                     data.logliTime(kBin, kFold) = logliPoisson(tmp(tmp==1), tmp(tmp==1));
                 end

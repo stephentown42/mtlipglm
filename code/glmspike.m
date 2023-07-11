@@ -8,6 +8,7 @@ classdef glmspike < neuroGLM
         description
         model
         modelfit
+        model_summary
         designOptions
         fitNeuron char      % e.g. LIPneuron01
     end
@@ -855,33 +856,7 @@ classdef glmspike < neuroGLM
             
         end
         
-        %% save
-        function fs = save(obj, modelDir, Tag)
-            % save glmspike object
-            % save(obj, modelDir, Tag)
-            if nargin==1
-                help glmspike/save
-                return
-            end
-            
-            if ~exist('Tag', 'var')
-                Tag='';
-            end
-            % remove design matrix
-            obj.dm.X=[];
-            disp('saving')
-            fname=fullfile(modelDir, [Tag, obj.fitNeuron, obj.description]);
-            try
-                save(fname, '-v7', 'obj')
-            catch
-                save(fname, '-v7.3', 'obj')
-            end
-            disp('done')
-            if nargout>0
-                fs=fname;
-            end
-        end
-        
+
         %% plot Coupling
         function ff = plotCoupling(obj, M)
             if nargin < 2
@@ -1027,26 +1002,41 @@ classdef glmspike < neuroGLM
         %% cross-validate predict rate
         function [lambda, trialRates] = cvPredictRate(obj, trial)
 %            [lambda,trialRates]=cvPredictRate(obj, trial)
-            trialRates=cell(numel(trial),1);
+            trialRates = cell(numel(trial),1);
             
-            for kFold=1:numel(obj.modelfit)
-                [rhat, trialStarts, trialEnds]=obj.predictSpikeRate(obj.modelfit(kFold), trial, 'trialIndices', obj.modelfit(kFold).testIndices);
-                for kTrial=1:numel(obj.modelfit(kFold).testIndices)
-                    trialRates{obj.modelfit(kFold).testIndices(kTrial)}=rhat(trialStarts(kTrial):trialEnds(kTrial));
+            for kFold = 1 : numel(obj.modelfit)
+                
+                
+                [rhat, trialStarts, trialEnds] = obj.predictSpikeRate(...
+                    obj.modelfit(kFold),...
+                    trial,...
+                    'trialIndices',...
+                    obj.modelfit(kFold).testIndices);
+
+                disp(trialStarts)
+
+                % observed_spike_count = obj.getBinnedSpikeTrain( trial,...
+                %     obj.fitNeuron, obj.modelfit(kFold).testIndices);
+                
+                for kTrial = 1 : numel(obj.modelfit(kFold).testIndices)
+                    
+                    trialRates{obj.modelfit(kFold).testIndices(kTrial)} = rhat(trialStarts(kTrial):trialEnds(kTrial));
+                    
                     if isempty(trialRates{obj.modelfit(kFold).testIndices(kTrial)})
-                        trialRates{obj.modelfit(kFold).testIndices(kTrial)}=nan(trial(obj.modelfit(kFold).testIndices(kTrial)).duration,1);
+                        trialRates{obj.modelfit(kFold).testIndices(kTrial)} = nan(trial(obj.modelfit(kFold).testIndices(kTrial)).duration,1);
                     end
                 end
             end
             
-            emptyInds=find(cellfun(@isempty,trialRates));
+            emptyInds = find(cellfun(@isempty, trialRates));
             if ~isempty(emptyInds)
-                [rhat, trialStarts, trialEnds]=obj.predictSpikeRate(obj.modelfit(kFold), trial, 'trialIndices', emptyInds);
+                [rhat, trialStarts, trialEnds] = obj.predictSpikeRate(obj.modelfit(kFold), trial, 'trialIndices', emptyInds);
                 for kTrial=1:numel(emptyInds)
                     trialRates{emptyInds(kTrial)}=rhat(trialStarts(kTrial):trialEnds(kTrial));
                 end
             end
-            lambda=cell2mat(trialRates);
+
+            lambda = cell2mat(trialRates);
         end
         
         %% predict rate within window
@@ -1092,7 +1082,99 @@ classdef glmspike < neuroGLM
             S=obj;
         end
         
+        function fs = save(obj, save_path, Tag)
+        % function save(obj, save_path, Tag)
+        %
+        % Save glmspike object
+        %
+        % Args:
+        %   save_path: directory to save file
+        %   Tag: prefix used as part of file name
         
+            if nargin==1
+                help glmspike/save
+                return
+            end
+            
+            if ~exist('Tag', 'var')
+                Tag='';
+            end
+            % remove design matrix
+            obj.dm.X = [];
+            disp('saving')
+            fname = fullfile(save_path, [Tag, obj.fitNeuron, obj.description]);
+            try
+                save(fname, '-v7', 'obj')
+            catch
+                save(fname, '-v7.3', 'obj')
+            end
+            disp('done')
+            if nargout > 0
+                fs = fname;
+            end
+        end
+
+        function save_json(obj, save_path, fields)
+        % function save_json(obj, save_path, fields)
+        %
+        % Write properties of glmspike to json file. Default properties
+        % include description, neuron being fitted, design options, model
+        % size, properties and fit, as well as covariate info.
+        %
+        % Args:
+        %   save_path: path to file to save 
+        %   fields: cell array containing names of fields in glmspike
+        %       object to save
+        %
+        % Returns:
+        %   None
+
+            if nargin < 3
+                fields = {...
+                    'description',...
+                    'fitNeuron',...
+                    'designOptions',...
+                    'model',...
+                    'model_summary',...
+                    'covar',...
+                    'modelfit'};
+            end
+        
+            % Create output structure and add descriptive variables
+            output = struct();
+                        
+            for i = 1 : numel(fields)
+                output.(fields{i}) = obj.(fields{i});
+            end
+
+            % Remove basis functions from covariates (makes file
+            % unreadable, will be saved elsewhere) and ensure function
+            % handles are strings
+            if any( strcmp(fields,'covar'))
+                for i = 1 : numel(output.covar)
+                    output.covar(i).stim = char(output.covar(i).stim);
+                    output.covar(i).basis = output.covar(i).basis.saveobj;
+                end
+            end
+
+            % Convert function handles into strings for model fit and
+            % transpose numeric vectors for presentation purposes
+            if any( strcmp(fields, 'modelfit'))
+
+                for i = 1 : numel(output.modelfit)
+                
+                    output.modelfit(i).fnlin = char(output.modelfit(i).fnlin);
+                    output.modelfit(i).khat = transpose(output.modelfit(i).khat);
+                    output.modelfit(i).SDebars = transpose(output.modelfit(i).SDebars);
+                end
+            end
+
+            % Encode as json and write to file
+            encoded = jsonencode(output,"PrettyPrint",true);
+            fid = fopen(save_path,'w');
+            fprintf(fid,'%s',encoded);
+            fclose(fid);
+        end
     end
     
     methods(Static)
