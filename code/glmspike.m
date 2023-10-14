@@ -640,6 +640,7 @@ classdef glmspike < neuroGLM
         % Optional Inputs
         %   'trialIndices',     default = dm.trialIndices
         %   'history',          default = []
+        %   'exclude_factor',   default = {''}
         %   'includeHistory',   default = false
         %   'nlinfun',          default = [] (must be a function handle)
         %   'forceChoice',      default = 0 (1 or 2 forces all choices to be coded
@@ -660,6 +661,7 @@ classdef glmspike < neuroGLM
 
             p.addOptional('trialIndices', trialInds);
             p.addOptional('includeHistory', true);
+            p.addOptional('exclude_factor', {''});
             p.addOptional('forceChoice', 0);
             p.addOptional('forceDirectionPreference', 0);
             p.addOptional('spiking', false);
@@ -691,7 +693,7 @@ classdef glmspike < neuroGLM
             history = find( ...
                 strcmp({obj.covar.desc}, obj.fitNeuron) |...
                 strcmp({obj.covar.desc}, 'Spike Hisory') |...
-                strcmp({obj.covar.desc}, 'Spike History'),1);
+                strcmp({obj.covar.desc}, 'Spike History'), 1);
 
             nT = size(X,1);
             
@@ -742,19 +744,26 @@ classdef glmspike < neuroGLM
                 predicted_rate = predicted_rate + ws.bias;
                 %rhat = ws.bias*ones(nT,1);
             end
-            
+
             for kCov = 1 : numel(Covariates)
 
+                % Optional Exclude identified factors (part of Recursive Factor
+                % elimination)
+                if any( strcmp( p.Results.exclude_factor, Covariates{kCov}))
+                    fprintf('skipping %s\n', Covariates{kCov})
+                    continue
+                end
+
+                % Optional exclude spike history
                 if ~isempty(history) &&...
                    (strcmp(Covariates{kCov}, Covariates{history}) && ~p.Results.includeHistory)
                     disp('skipping history')
                     continue
                 end
                 
-                if strcmp(Covariates{kCov}, 'bias')
-                    continue
-                end
-                
+                % Exclude bias
+                if strcmp(Covariates{kCov}, 'bias'), continue; end
+               
                 ii = obj.idxmap.(Covariates{kCov});
                 
                 for kTrial = 1 : nTrials
@@ -1000,18 +1009,18 @@ classdef glmspike < neuroGLM
         end
         
         %% cross-validate predict rate
-        function [lambda, trialRates] = cvPredictRate(obj, trial)
+        function [lambda, trialRates] = cvPredictRate(obj, trial, varargin)
 %            [lambda,trialRates]=cvPredictRate(obj, trial)
             trialRates = cell(numel(trial),1);
             
             for kFold = 1 : numel(obj.modelfit)
-                
-                
+                                
                 [rhat, trialStarts, trialEnds] = obj.predictSpikeRate(...
                     obj.modelfit(kFold),...
                     trial,...
                     'trialIndices',...
-                    obj.modelfit(kFold).testIndices);
+                    obj.modelfit(kFold).testIndices,...
+                    varargin{:});
 
                 disp(trialStarts)
 
@@ -1102,7 +1111,7 @@ classdef glmspike < neuroGLM
             % remove design matrix
             obj.dm.X = [];
             disp('saving')
-            fname = fullfile(save_path, [Tag, obj.fitNeuron, obj.description]);
+            fname = fullfile(save_path, [Tag, obj.fitNeuron, '_', obj.description]);
             try
                 save(fname, '-v7', 'obj')
             catch
